@@ -1,0 +1,59 @@
+could not open file convergenceControl.H for source file hisaModuleTimestepping.C due to No such file or directory
+could not open file singleRegionSolutionControl.H for source file hisaModuleTimestepping.C due to No such file or directory
+could not open file convergenceControl.H for source file hisaModule.C due to No such file or directory
+could not open file singleRegionSolutionControl.H for source file hisaModule.C due to No such file or directory
+In file included from hisaModule.H:47:0,
+                 from hisaModule.C:27:
+../solver/lnInclude/solverModule.H: In member function ‘virtual Foam::vectorField Foam::solverModule::getDeltaU()’:
+../solver/lnInclude/solverModule.H:202:42: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU() {};
+                                          ^
+In file included from hisaModule.H:55:0,
+                 from hisaModule.C:27:
+../../finiteVolume/lnInclude/fluxScheme.H: In member function ‘virtual Foam::vectorField Foam::fluxScheme::getDeltaU()’:
+../../finiteVolume/lnInclude/fluxScheme.H:140:42: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU() {};
+                                          ^
+../../finiteVolume/lnInclude/fluxScheme.H: In member function ‘virtual Foam::vectorField Foam::fluxScheme::getDeltaU_noIBM()’:
+../../finiteVolume/lnInclude/fluxScheme.H:142:48: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU_noIBM() {};
+                                                ^
+In file included from hisaModule.H:408:0,
+                 from hisaModule.C:27:
+hisaModuleI.H: In member function ‘void Foam::hisaModule::locateCell(Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar)’:
+hisaModuleI.H:933:13: warning: unused variable ‘mesh’ [-Wunused-variable]
+     fvMesh& mesh = mesh_();
+             ^
+In file included from hisaModule.C:943:0:
+ptrRefs.H: In member function ‘virtual void Foam::hisaModule::eulerIteration()’:
+ptrRefs.H:28:24: warning: unused variable ‘solnControl’ [-Wunused-variable]
+     pseudotimeControl& solnControl = solnControl_();
+                        ^
+ptrRefs.H:45:21: warning: unused variable ‘rPseudoDeltaT’ [-Wunused-variable]
+     volScalarField& rPseudoDeltaT = rPseudoDeltaT_();
+                     ^
+ptrRefs.H:46:18: warning: unused variable ‘ddtCoeff’ [-Wunused-variable]
+     scalarField& ddtCoeff = ddtCoeff_();
+                  ^
+In file included from hisaModule.H:47:0,
+                 from hisaModuleTimestepping.C:39:
+../solver/lnInclude/solverModule.H: In member function ‘virtual Foam::vectorField Foam::solverModule::getDeltaU()’:
+../solver/lnInclude/solverModule.H:202:42: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU() {};
+                                          ^
+In file included from hisaModule.H:55:0,
+                 from hisaModuleTimestepping.C:39:
+../../finiteVolume/lnInclude/fluxScheme.H: In member function ‘virtual Foam::vectorField Foam::fluxScheme::getDeltaU()’:
+../../finiteVolume/lnInclude/fluxScheme.H:140:42: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU() {};
+                                          ^
+../../finiteVolume/lnInclude/fluxScheme.H: In member function ‘virtual Foam::vectorField Foam::fluxScheme::getDeltaU_noIBM()’:
+../../finiteVolume/lnInclude/fluxScheme.H:142:48: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU_noIBM() {};
+                                                ^
+In file included from hisaModule.H:408:0,
+                 from hisaModuleTimestepping.C:39:
+hisaModuleI.H: In member function ‘void Foam::hisaModule::locateCell(Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar)’:
+hisaModuleI.H:933:13: warning: unused variable ‘mesh’ [-Wunused-variable]
+     fvMesh& mesh = mesh_();
+             ^

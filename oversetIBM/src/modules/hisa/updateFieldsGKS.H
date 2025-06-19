@@ -1,0 +1,116 @@
+/*---------------------------------------------------------------------------*\
+
+    HiSA: High Speed Aerodynamic solver
+
+    Copyright (C) 2014-2018 Johan Heyns - CSIR, South Africa
+    Copyright (C) 2014-2018 Oliver Oxtoby - CSIR, South Africa
+
+-------------------------------------------------------------------------------
+License
+    This file is part of HiSA.
+
+    HiSA is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    HiSA is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with HiSA.  If not, see <http://www.gnu.org/licenses/>.
+
+\*---------------------------------------------------------------------------*/
+
+    // Optional failsafe to avoid -ve rho. Avoid dividing by very small quantity
+/*    const dictionary& dict = mesh.solutionDict().subDict("pseudoTime");
+    dimensionedScalar rhoMin
+    (
+        "rhoMin", 
+        dimDensity, 
+        dict.lookupOrDefault<scalar>("rhoMin", -GREAT)
+    );
+    bound(rho, rhoMin);
+*/
+    // Compute internal fields
+    U.ref() = rhoU.internalField()/rho.internalField();
+
+//    e.ref() = rhoE.internalField()/rho.internalField()
+//              - 0.5*magSqr(U.internalField());
+
+/*    #include "printMineMinRho.H"
+
+    // Temperature bound
+    dimensionedScalar TMin
+    (
+        "TMin", 
+        dimTemperature, 
+        dict.lookupOrDefault<scalar>("TMin", SMALL)
+    );
+    dimensionedScalar TMax
+    (
+        "TMax", 
+        dimTemperature, 
+        dict.lookupOrDefault<scalar>("TMax", GREAT)
+    );
+    
+    // Bound energy
+    const volScalarField Cv = thermo.Cv();
+    dimensionedScalar CvMin = min(Cv);
+    dimensionedScalar CvMax = max(Cv);
+    dimensionedScalar eMin = CvMin*TMin;
+    dimensionedScalar eMax = CvMax*TMax;
+    if (min(e).value() <= eMin.value())
+    {
+        bound(e, eMin);
+        bounded_ = true;
+    }
+    if (max(e).value() > eMax.value())
+    {
+         Info<< "Bounding " << e.name()
+             << " max: " << max(e).value()
+             << " and " << (thermo.T()).name()
+             << " max: " << max(thermo.T()).value()
+             << endl;
+
+        e.primitiveFieldRef() = min
+        (
+            e.primitiveField(),
+            eMax.value()
+        );
+
+        e.boundaryFieldRef() = min(e.boundaryField(), eMax.value());
+    }
+*/
+    // Calc T and psi from e
+//    thermo.correct();
+
+    p.ref() = rho.internalField()/psi.internalField();
+
+    // Recalc rhoU and rhoE in case rho or e were bounded
+    rhoU.ref() = rho.internalField()*U.internalField();
+    rhoE.ref() = 
+        rho.internalField()*
+        (
+            e.internalField()+0.5*magSqr(U.internalField())
+        );
+
+    // Correct boundary fields
+    p.correctBoundaryConditions();          // NOTE: With CB, U and T is based on p, rho BC is based on p
+    U.correctBoundaryConditions();
+
+/*    thermo.T().correctBoundaryConditions();
+    e.boundaryFieldRef() == thermo.he(p, thermo.T())->boundaryField();
+    bound(e,eMin);
+    thermo.correct();                       // NOTE: Correct psi boundaryField
+*/
+    //rho.boundaryField() == psi.boundaryField()*p.boundaryField(); // Slight difference compared to when using rhoFix BC to update
+    rho.correctBoundaryConditions();        // NOTE: rhoFix does a psi*p update (See eg charactPress)
+    rhoU.boundaryFieldRef() = rho.boundaryField()*U.boundaryField();
+    rhoE.boundaryFieldRef() =
+        rho.boundaryField()*
+        (
+            e.boundaryField() + 0.5*magSqr(U.boundaryField())
+        );

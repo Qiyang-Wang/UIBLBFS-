@@ -1,0 +1,130 @@
+wmake solver
+wmake hisa
+Making dependency list for source file hisaModuleTimestepping.C
+could not open file convergenceControl.H for source file hisaModuleTimestepping.C due to No such file or directory
+could not open file singleRegionSolutionControl.H for source file hisaModuleTimestepping.C due to No such file or directory
+Making dependency list for source file hisaModule.C
+could not open file convergenceControl.H for source file hisaModule.C due to No such file or directory
+could not open file singleRegionSolutionControl.H for source file hisaModule.C due to No such file or directory
+g++ -std=c++11 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -O3  -DNoRepository -ftemplate-depth-100 -g  -I../solver/lnInclude -I../../finiteVolume/jacobians/jacobianMatrix -I../../solvers/lnInclude -I../../preconditioners/lnInclude -I../../finiteVolume/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/finiteVolume/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/transportModels/compressible/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/thermophysicalModels/basic/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/thermophysicalModels/specie/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/TurbulenceModels/turbulenceModels/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/TurbulenceModels/compressible/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/dynamicFvMesh/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/dynamicMesh/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/meshTools/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/parallel/decompose/decompositionMethods/lnInclude -I/mnt/e/hisa-master/libs/overset -IlnInclude -I. -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/OpenFOAM/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/OSspecific/POSIX/lnInclude   -fPIC -c hisaModule.C -o Make/linux64GccDPInt32Opt/hisaModule.o
+In file included from hisaModule.H:47,
+                 from hisaModule.C:27:
+../solver/lnInclude/solverModule.H: In member function ‘virtual Foam::vectorField Foam::solverModule::getDeltaU()’:
+../solver/lnInclude/solverModule.H:202:42: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU() {};
+                                          ^
+In file included from hisaModule.H:435,
+                 from hisaModule.C:27:
+hisaModuleI_porous.H: In member function ‘void Foam::hisaModule::readLagragianPoints()’:
+hisaModuleI_porous.H:183:24: warning: unused variable ‘zoneID’ [-Wunused-variable]
+     const labelIOList& zoneID = zoneID_();
+                        ^~~~~~
+hisaModuleI_porous.H: In member function ‘void Foam::hisaModule::calcCorrection(Foam::label, const labelList&)’:
+hisaModuleI_porous.H:674:12: warning: unused variable ‘Cf’ [-Wunused-variable]
+     scalar Cf = 0;
+            ^~
+hisaModuleI_porous.H:676:12: warning: unused variable ‘Cm’ [-Wunused-variable]
+     scalar Cm = 0;
+            ^~
+hisaModuleI_porous.H: In member function ‘void Foam::hisaModule::calcMotion()’:
+hisaModuleI_porous.H:853:12: warning: unused variable ‘t’ [-Wunused-variable]
+     scalar t = runTime.value();
+            ^
+hisaModuleI_porous.H:854:12: warning: unused variable ‘dt’ [-Wunused-variable]
+     scalar dt = runTime.deltaT().value();
+            ^~
+In file included from hisaModule.C:424:
+createAlpha.H: In member function ‘virtual void Foam::hisaModule::initialise()’:
+createAlpha.H:148:17: warning: unused variable ‘gradAlpha’ [-Wunused-variable]
+ volVectorField& gradAlpha = gradAlpha_();
+                 ^~~~~~~~~
+createAlpha.H:167:17: warning: unused variable ‘F_r’ [-Wunused-variable]
+ volVectorField& F_r = F_r_();
+                 ^~~
+In file included from hisaModule.C:585:
+ptrRefs.H: In member function ‘virtual void Foam::hisaModule::outerIteration()’:
+ptrRefs.H:27:17: warning: unused variable ‘runTime’ [-Wunused-variable]
+     const Time& runTime = time_;
+                 ^~~~~~~
+ptrRefs.H:28:24: warning: unused variable ‘solnControl’ [-Wunused-variable]
+     pseudotimeControl& solnControl = solnControl_();
+                        ^~~~~~~~~~~
+ptrRefs.H:29:13: warning: unused variable ‘mesh’ [-Wunused-variable]
+     fvMesh& mesh = mesh_();
+             ^~~~
+ptrRefs.H:33:21: warning: unused variable ‘p’ [-Wunused-variable]
+     volScalarField& p = thermo.p();
+                     ^
+ptrRefs.H:35:27: warning: unused variable ‘psi’ [-Wunused-variable]
+     const volScalarField& psi = thermo.psi();
+                           ^~~
+ptrRefs.H:37:21: warning: unused variable ‘U’ [-Wunused-variable]
+     volVectorField& U = U_();
+                     ^
+ptrRefs.H:39:21: warning: unused variable ‘rho’ [-Wunused-variable]
+     volScalarField& rho = scalarVars_[0];
+                     ^~~
+ptrRefs.H:40:21: warning: unused variable ‘rhoU’ [-Wunused-variable]
+     volVectorField& rhoU = vectorVars_[0];
+                     ^~~~
+ptrRefs.H:43:25: warning: unused variable ‘phi’ [-Wunused-variable]
+     surfaceScalarField& phi = phi_();
+                         ^~~
+ptrRefs.H:45:21: warning: unused variable ‘rPseudoDeltaT’ [-Wunused-variable]
+     volScalarField& rPseudoDeltaT = rPseudoDeltaT_();
+                     ^~~~~~~~~~~~~
+ptrRefs.H:46:18: warning: unused variable ‘ddtCoeff’ [-Wunused-variable]
+     scalarField& ddtCoeff = ddtCoeff_();
+                  ^~~~~~~~
+ptrRefs.H:48:21: warning: unused variable ‘rhoR’ [-Wunused-variable]
+     volScalarField& rhoR = scalarResiduals_[0];
+                     ^~~~
+ptrRefs.H:49:21: warning: unused variable ‘rhoUR’ [-Wunused-variable]
+     volVectorField& rhoUR = vectorResiduals_[0];
+                     ^~~~~
+ptrRefs.H:52:24: warning: unused variable ‘flux’ [-Wunused-variable]
+     fluxScheme_incomp& flux = flux_();
+                        ^~~~
+In file included from hisaModule.C:667:
+ptrRefs.H: In member function ‘virtual void Foam::hisaModule::eulerIteration()’:
+ptrRefs.H:28:24: warning: unused variable ‘solnControl’ [-Wunused-variable]
+     pseudotimeControl& solnControl = solnControl_();
+                        ^~~~~~~~~~~
+ptrRefs.H:45:21: warning: unused variable ‘rPseudoDeltaT’ [-Wunused-variable]
+     volScalarField& rPseudoDeltaT = rPseudoDeltaT_();
+                     ^~~~~~~~~~~~~
+ptrRefs.H:46:18: warning: unused variable ‘ddtCoeff’ [-Wunused-variable]
+     scalarField& ddtCoeff = ddtCoeff_();
+                  ^~~~~~~~
+hisaModule.C:737:25: warning: unused variable ‘Up’ [-Wunused-variable]
+     surfaceVectorField& Up = Up_();
+                         ^~
+g++ -std=c++11 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -O3  -DNoRepository -ftemplate-depth-100 -g  -I../solver/lnInclude -I../../finiteVolume/jacobians/jacobianMatrix -I../../solvers/lnInclude -I../../preconditioners/lnInclude -I../../finiteVolume/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/finiteVolume/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/transportModels/compressible/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/thermophysicalModels/basic/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/thermophysicalModels/specie/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/TurbulenceModels/turbulenceModels/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/TurbulenceModels/compressible/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/dynamicFvMesh/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/dynamicMesh/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/meshTools/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/parallel/decompose/decompositionMethods/lnInclude -I/mnt/e/hisa-master/libs/overset -IlnInclude -I. -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/OpenFOAM/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/OSspecific/POSIX/lnInclude   -fPIC -c hisaModuleTimestepping.C -o Make/linux64GccDPInt32Opt/hisaModuleTimestepping.o
+In file included from hisaModule.H:47,
+                 from hisaModuleTimestepping.C:39:
+../solver/lnInclude/solverModule.H: In member function ‘virtual Foam::vectorField Foam::solverModule::getDeltaU()’:
+../solver/lnInclude/solverModule.H:202:42: warning: no return statement in function returning non-void [-Wreturn-type]
+         virtual vectorField getDeltaU() {};
+                                          ^
+In file included from hisaModule.H:435,
+                 from hisaModuleTimestepping.C:39:
+hisaModuleI_porous.H: In member function ‘void Foam::hisaModule::readLagragianPoints()’:
+hisaModuleI_porous.H:183:24: warning: unused variable ‘zoneID’ [-Wunused-variable]
+     const labelIOList& zoneID = zoneID_();
+                        ^~~~~~
+hisaModuleI_porous.H: In member function ‘void Foam::hisaModule::calcCorrection(Foam::label, const labelList&)’:
+hisaModuleI_porous.H:674:12: warning: unused variable ‘Cf’ [-Wunused-variable]
+     scalar Cf = 0;
+            ^~
+hisaModuleI_porous.H:676:12: warning: unused variable ‘Cm’ [-Wunused-variable]
+     scalar Cm = 0;
+            ^~
+hisaModuleI_porous.H: In member function ‘void Foam::hisaModule::calcMotion()’:
+hisaModuleI_porous.H:853:12: warning: unused variable ‘t’ [-Wunused-variable]
+     scalar t = runTime.value();
+            ^
+hisaModuleI_porous.H:854:12: warning: unused variable ‘dt’ [-Wunused-variable]
+     scalar dt = runTime.deltaT().value();
+            ^~
+g++ -std=c++11 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -O3  -DNoRepository -ftemplate-depth-100 -g  -I../solver/lnInclude -I../../finiteVolume/jacobians/jacobianMatrix -I../../solvers/lnInclude -I../../preconditioners/lnInclude -I../../finiteVolume/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/finiteVolume/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/transportModels/compressible/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/thermophysicalModels/basic/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/thermophysicalModels/specie/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/TurbulenceModels/turbulenceModels/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/TurbulenceModels/compressible/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/dynamicFvMesh/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/dynamicMesh/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/meshTools/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/parallel/decompose/decompositionMethods/lnInclude -I/mnt/e/hisa-master/libs/overset -IlnInclude -I. -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/OpenFOAM/lnInclude -I/data/wangqy/OpenFOAM/OpenFOAM-5.x/src/OSspecific/POSIX/lnInclude   -fPIC -shared -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/pseudotimeControl/pseudotimeControl.o Make/linux64GccDPInt32Opt/hisaModule.o Make/linux64GccDPInt32Opt/hisaModuleTimestepping.o -L/data/wangqy/OpenFOAM/OpenFOAM-5.x/platforms/linux64GccDPInt32Opt/lib \
+    -lfiniteVolume -lcompressibleTransportModels -lfluidThermophysicalModels -lspecie -lturbulenceModels -lcompressibleTurbulenceModels -ldynamicFvMesh -ldynamicMesh -ltopoChangerFvMesh -lmeshTools -ldecompositionMethods -L/data/wangqy/OpenFOAM/OpenFOAM-5.x/platforms/linux64GccDPInt32Opt/lib/dummy -lptscotchDecomp -L/data/wangqy/OpenFOAM/wangqy-5.x/platforms/linux64GccDPInt32Opt/lib -lhisaFiniteVolume -lhisaPreconditioners -lhisaSolvers -lsolverModule -lhisaFunctionObjects -lmydynamicMesh -lmydynamicOversetFvMesh  -o /data/wangqy/OpenFOAM/wangqy-5.x/platforms/linux64GccDPInt32Opt/lib/libhisaModule.so

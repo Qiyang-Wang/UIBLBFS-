@@ -1,0 +1,444 @@
+/*---------------------------------------------------------------------------*\
+
+    HiSA: High Speed Aerodynamic solver
+
+    Copyright (C) 2014-2018 Johan Heyns - CSIR, South Africa
+    Copyright (C) 2014-2018 Oliver Oxtoby - CSIR, South Africa
+
+-------------------------------------------------------------------------------
+License
+    This file is part of HiSA.
+
+    HiSA is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    HiSA is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with HiSA.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::hisaModule
+
+Description
+    Coupled, density-based compressible flow solver
+
+See also
+    rhoCentralFoam
+
+SourceFiles
+    hisaModule.C
+
+Authors
+    Johan Heyns
+    Oliver Oxtoby
+        Council for Scientific and Industrial Research, South Africa
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef hisaModule_H
+#define hisaModule_H
+
+#include "solverModule.H"
+#include "dynamicFvMesh.H"
+#include "fvCFD.H"
+#include "pimpleControl.H"
+#include "psiThermo.H"
+#include "turbulentFluidThermoModel.H"
+#include "zeroGradientFvPatchFields.H"
+#include "fixedRhoFvPatchScalarField.H"
+#include "fluxScheme_incomp.H"
+#include "pseudotimeControl/pseudotimeControl.H"
+#include "jacobian.H"
+#include "upwind.H"
+#include "preconditioner.H"
+#include "faceSet.H"
+#include "fvMeshSubset.H"
+#include "vectorIOList.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+/*---------------------------------------------------------------------------*\
+                   Class hisaModule Declaration
+\*---------------------------------------------------------------------------*/
+
+class SolidObject
+{
+public:
+    double x = 0;
+    double y = 0;
+    double x0 = 0;
+    double y0 = 0;
+    double u = 0;
+    double v = 0;
+};
+
+class NeighbourCells
+{
+public:
+    label n_ = -1;
+    label s_ = -1;
+    label w_ = -1;
+    label e_ = -1;
+};
+
+class hisaModule
+:
+    public solverModule
+{
+private:
+//        List<SolidObject> solidObject = List<SolidObject>(240);
+        double N_L;
+	scalar h_;
+    List<SolidObject> solidObject_;
+    List<SolidObject> solidObject_F;
+    List<SolidObject> solidObject_P;
+
+    List<scalar> V_; // store the rowsum of A matrix
+
+	List<DynamicList<double>> D_; // Matrix of delta function
+	List<DynamicList<int>> DCellID_; 
+
+    List<DynamicList<double>> D_F; // Matrix of delta function
+	List<DynamicList<int>> DCellID_F; 
+    
+    List<DynamicList<double>> D_P; // Matrix of delta function
+	List<DynamicList<int>> DCellID_P; 
+
+
+
+
+
+
+//	List<List<List<Vector<int>>>> sharedPair_; 
+//	List<List<double>> A_; 
+//	List<List<int>> APointID_;
+	
+	vectorField Ub_;
+	scalarField Tb_;
+
+	scalarField B_;
+	scalarField X_;
+
+	vectorField deltaU_; 
+	
+	List<int> hostCell_; 
+	
+	List<NeighbourCells> neighbourCells_; 
+        
+	scalar Cl_, Cd_, Cm_;
+    scalar Cl_1,Cl_2,Cd_1,Cd_2,Cm_1,Cm_2;
+
+        scalar g_;	
+	scalar I_, M_, rhoS_, rhoF_;
+	scalar xc_, yc_;
+	scalar ut_, vt_,vt_o_, omega_;
+
+        PtrList<fvMeshSubset> meshParts_;
+        //volScalarField zoneID_;
+        autoPtr<const labelIOList> zoneID_;
+        label oversetZoneID_;
+
+protected:
+
+    // Ordering of residual printed output
+    const label residualOrderingArray[2] = {0, 1};
+    const labelList residualOrdering =
+        labelList(FixedList<label,2>(residualOrderingArray));
+
+    // Private data
+
+        //- Reference to the time database
+        const Time& time_;
+
+        vectorIOList oversetMotion_;
+
+        autoPtr<volScalarField> cellMask_;
+        
+        autoPtr<volScalarField> interpolatedCells_;
+
+        autoPtr<fvMesh> mesh_;
+
+        autoPtr< pseudotimeControl > solnControl_;
+
+        autoPtr<psiThermo> pThermo_;
+
+        autoPtr<volVectorField> U_;
+        
+        autoPtr<volScalarField> alpha_;
+        
+        autoPtr<volScalarField> GAMMA_; // switch for Darcy-Forchheimer Force
+
+        autoPtr<volVectorField> U_vol_; //新加的 定义指针
+        
+        scalar epsilon_;
+        scalar eta_;
+        dimensionedScalar K_ = dimensionedScalar("K", dimensionSet(0,2,0,0,0,0,0), 1e-2);
+        scalar C_F; // Forchheimer coefficient
+        
+        autoPtr<volVectorField> gradAlpha_;
+
+        autoPtr<volVectorField> F_r_; // Darcy-Forchheimer force
+
+        // Stored (if viscous) for use in maxwellSlip boundary condition
+        autoPtr<volTensorField> tauMC_;
+
+        autoPtr<surfaceScalarField> phi_;
+        autoPtr<surfaceVectorField> phiUp_;
+        autoPtr<surfaceScalarField> phiEp_;
+        autoPtr<surfaceVectorField> Up_;
+
+        autoPtr<dimensionedScalar> Cs_macro_;
+
+        autoPtr<volScalarField> rPseudoDeltaT_;
+        // 1/dt (for Euler), or equivalent for other schemes
+        autoPtr<scalarField> ddtCoeff_;
+        // Whether variables had to be bounded this iteration
+        bool bounded_;
+
+        //rho and rhoE variables
+        PtrList<volScalarField> scalarVars_;
+        PtrList<volScalarField> scalarVarsPrevIter_;
+        //rhoU variable
+        PtrList<volVectorField> vectorVars_;
+        PtrList<volVectorField> vectorVarsPrevIter_;
+
+        //rho and rhoE residuals
+        PtrList<volScalarField> scalarResiduals_;
+        //rhoU residual
+        PtrList<volVectorField> vectorResiduals_;
+
+        autoPtr<compressible::turbulenceModel> turbulence_;
+        autoPtr<fluxScheme_incomp> flux_;
+
+        bool inviscid_;
+
+        //- Whether mesh is moved during outer corrector loop. 
+        // Only applies to transient analysis.
+        bool moveMeshOuterCorrectors_;
+
+        bool steadyState_;
+        bool localTimestepping_;
+        bool localTimesteppingBounding_;
+        scalar localTimesteppingLowerBound_;
+        scalar localTimesteppingUpperBound_;
+
+        //- Store previous residual for CoNum relaxation
+        autoPtr<residualIO> initRes_;
+        autoPtr<residualIO> prevRes_;
+
+        //- Current pseudo-courant number
+        autoPtr< uniformDimensionedScalarField > pseudoCoNum_; // global timestepping
+        autoPtr< volScalarField > pseudoCoField_;              // local timestepping
+        //- Minimum pseudo-Courant number
+        scalar pseudoCoNumMin_;
+        //- Maximum pseudo-Courant number
+        scalar pseudoCoNumMax_;
+        //- Maximum increase as a fraction of current pseudo-Courant number
+        scalar pseudoCoNumMaxIncr_;
+        //- Minimum decrease as a fraction of current pseudo-Courant number
+        scalar pseudoCoNumMinDecr_;
+
+        //- Print debug info for nearest cell
+        bool cellDebugging_;
+        label debugCell_;
+
+        //- Whether to do parallel redistribute on mesh topo change
+        bool rebalance_;
+        //- Maximum load imbalance as a fraction before rebalancing done
+        scalar maxLoadImbalance_;
+
+    // Protected member functions
+
+        //- Set timestep size based on current Courant no.
+        void setPseudoDeltaT();
+
+        //- Adjust Courant number
+        void setPseudoCoNum();
+
+        //- Recursively create preconditioners and their Jacobians if applicable
+        void createPreconditioners
+        (
+            PtrList<preconditioner<2,1>>& preconditioners,
+            PtrList<jacobian>& jacobians,
+            const dictionary& parentDict
+        );
+
+        //- Helper function to synchronise fields after mesh redistribute
+        template<class FieldType, class Type>
+        void parallelSyncFields(const wordList& fields);
+
+        //- Check load-balance and re-distribute mesh if necessary
+        void redistributePar();
+
+        //- Search for debug point specified in controlDict
+        void findDebugCell();
+
+public:
+
+    //- Runtime type information
+    TypeName("hisa");
+
+
+    // Constructors
+
+        //- Construct from components
+        hisaModule
+        (
+            const word& name,
+            const Time&
+        );
+
+        //- Construct from components
+        hisaModule
+        (
+            const word& name,
+            const Time&,
+            const dictionary&
+        );
+
+    // Member Functions
+
+//        virtual void turbulenceCorrect();
+
+        inline virtual const volScalarField& rho()
+        {
+            return scalarVars_[0];
+        }
+
+        inline virtual const volVectorField& U()
+        {
+            return U_();
+        }
+
+        inline virtual const volScalarField& muEff()
+        {
+            return turbulence_().mu();
+        }
+
+        inline virtual const fvMesh& getMesh()
+        {
+            return mesh_();
+        }
+
+
+        //- Returns ratio between desired and current time step
+        virtual scalar timeStepScaling(const scalar& maxCoNum);
+
+        //- Called before time loop. Typically create mesh and fields here.
+        virtual void initialise();
+
+        //- Called at the start of a time step
+        virtual void beginTimeStep();
+
+        //- Called for each outer ('pimple') iteration
+        virtual void outerIteration();
+        
+	virtual void eulerIteration();
+
+        //- Should return the mesh created during initialise
+        virtual fvMesh& mesh()
+        {
+            return mesh_();
+        }
+
+        //- Should return the solution control created during initialise
+        virtual solutionControl& solnControl()
+        {
+            return solnControl_();
+        }
+
+        //- Returns whether analysis should be steady state - makes time steps
+        // and outer iterations one and the same.
+        virtual bool steadyState()
+        {
+            return steadyState_;
+        }
+
+	inline virtual vectorField getDeltaU();
+
+	inline virtual void postProcess(scalar& Cl_p, scalar& Cd_p, scalar& Cl_v, scalar& Cd_v);
+
+private:	
+
+        inline void readLagragianPoints();
+        
+	inline double deltaFunc(double r); //delta function 2D
+
+	inline void ibm(); //Immersed Boundary
+
+	inline void desiredProperties();
+	
+	inline void calcB(int cmpt, const labelList& cellMap);
+
+	inline void solveX();
+	
+	inline void PBiCGsolve
+        (
+            scalarField& psi,
+            const scalarField& source
+	);
+
+	inline void explicitSolve
+        (
+            scalarField& psi,
+            const scalarField& source
+	);
+	
+	inline void Amul(scalarField &wA, scalarField& psi);
+	
+	inline void Tmul(scalarField &wA, scalarField& psi);
+	
+	inline scalar calcNormFactor
+        (
+            const scalarField& psi,
+            const scalarField& source,
+            const scalarField& Apsi,
+            scalarField& tmpField
+        );
+
+	inline void calcCorrection(label cmpt, const labelList& cellMap);
+	
+	inline void updateLagrangian();
+
+	inline void calcMotion();
+
+	inline void locateCell();
+
+        inline label findNearestCell(const point& location, const label seedCelli);
+
+        inline bool findNearer
+        (
+            const point& sample,
+            const pointField& points,
+            const labelList& indices,
+            label& nearestI,
+            scalar& nearestDistSqr
+        );
+
+	inline void findEulerian(const label hostCell, const label i);
+	
+	inline void isNearby(const label cell, const label i, int& count);
+
+};
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+#include "hisaModuleI_porous.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
+
+// ************************************************************************* //
+

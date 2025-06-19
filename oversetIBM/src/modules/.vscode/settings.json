@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "hisaModule.C": "cpp",
+        "hisaModuleGKS.C": "cpp",
+        "pseudotimeControl.C": "cpp",
+        "solverModule.C": "cpp"
+    }
+}

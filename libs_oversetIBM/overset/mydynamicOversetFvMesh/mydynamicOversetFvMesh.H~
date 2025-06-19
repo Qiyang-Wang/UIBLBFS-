@@ -1,0 +1,143 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::mydynamicOversetFvMesh
+
+Description
+    The mydynamicOversetFvMesh
+
+SourceFiles
+    mydynamicOversetFvMesh.C
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef mydynamicOversetFvMesh_H
+#define mydynamicOversetFvMesh_H
+
+#include "dynamicMotionSolverFvMesh.H"
+#include "volFields.H"
+#include "vectorList.H"
+#include "fvMeshSubset.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+
+/*---------------------------------------------------------------------------*\
+                           Class mydynamicOversetFvMesh Declaration
+\*---------------------------------------------------------------------------*/
+
+class mydynamicOversetFvMesh
+:
+    public dynamicMotionSolverFvMesh
+{
+    // Private data
+
+
+    // Private Member Functions
+
+        //- Disallow default bitwise copy construct
+        mydynamicOversetFvMesh(const mydynamicOversetFvMesh&);
+
+        //- Disallow default bitwise assignment
+        void operator=(const mydynamicOversetFvMesh&);
+
+protected:
+        labelList interpolationCells_;
+        labelList donorCells_;
+        labelList holeCells_;
+        labelList frontList_;
+
+        surfaceScalarField faceType_;
+        surfaceScalarField faceDonor_;
+        volScalarField cellType_;
+        volScalarField cellDonor_;
+        
+        volScalarField volZoneID_;
+        labelIOList zoneID_;
+        label oversetZoneID_;
+        scalar rxMin_;
+        scalar rxMin_;
+        scalar ryMax_;
+        scalar ryMax_;
+        label nZones_;
+        //PtrList<fvMesh> meshParts_;
+        PtrList<fvMeshSubset> meshParts_;
+//        PtrList<const labelList> cellMaps_;
+
+        
+
+public:
+
+    //- Runtime type information
+    TypeName("mydynamicOversetFvMesh");
+
+
+    // Constructors
+
+        //- Construct from IOobject
+        mydynamicOversetFvMesh(const IOobject& io);
+
+
+    //- Destructor
+    ~mydynamicOversetFvMesh();
+
+
+    // Member Functions
+
+        //- Update the mesh for both mesh motion and topology change
+        virtual bool update();
+        bool updateInterpolationCell();
+        bool interpolateField();
+        bool findDonor();
+        label findNearestCell
+        (
+            const point& location,
+            const label seedCelli,
+            const label zonei
+        ) const;
+        bool findNearer
+        (
+            const point& sample,
+            const pointField& points,
+            const labelList& indices,
+            label& nearestI,
+            scalar& nearestDistSqr
+        ) const;
+  
+        bool walkFront();
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
+
+// ************************************************************************* //

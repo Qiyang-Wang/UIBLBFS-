@@ -1,0 +1,8 @@
+#! /bin/bash
+
+cd myGivenMotion
+wclean
+cd ..
+cd overset
+wclean
+cd ..

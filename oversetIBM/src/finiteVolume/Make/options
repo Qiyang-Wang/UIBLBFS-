@@ -1,0 +1,45 @@
+ifeq (v,$(WM_PROJECT_VERSION:v%=v))
+    VER_1712 := $(shell expr $(WM_PROJECT_VERSION) \>= v1712)
+    ifeq ($(VER_1712), 1)
+        FOAM_VERSION = -DFOAM_VERSION_1712
+    endif
+else
+    VER_6 := $(shell expr $(WM_PROJECT_VERSION) \>= 6)
+    ifeq ($(VER_6), 1)
+        FOAM_VERSION = -DFOAM_VERSION_6
+    endif
+    VER_4 := $(shell expr $(WM_PROJECT_VERSION) \< 5)
+    ifeq ($(VER_4), 1)
+        FOAM_VERSION = -DFOAM_VERSION_4
+    endif
+endif
+
+ifdef BLUECFDPATH
+    BLUECFD = -DBLUECFD
+endif
+
+EXE_INC = -g \
+    $(FOAM_VERSION) \
+    $(BLUECFD) \
+    -I./lnInclude \
+    -I./fvjMatrix \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/transportModels/compressible/lnInclude \
+    -I$(LIB_SRC)/thermophysicalModels/basic/lnInclude \
+    -I$(LIB_SRC)/thermophysicalModels/specie/lnInclude \
+    -I$(LIB_SRC)/TurbulenceModels/turbulenceModels/lnInclude \
+    -I$(LIB_SRC)/TurbulenceModels/compressible/lnInclude \
+    -I$(LIB_SRC)/dynamicMesh/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude
+
+LIB_LIBS = \
+    -lOpenFOAM \
+    -lfiniteVolume \
+    -lmeshTools \
+    -lcompressibleTransportModels \
+    -lcompressibleTurbulenceModels \
+    -lfluidThermophysicalModels \
+    -lspecie \
+    -lcompressibleTurbulenceModels
+
+

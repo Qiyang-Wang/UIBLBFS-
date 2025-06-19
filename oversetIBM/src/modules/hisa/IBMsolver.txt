@@ -1,0 +1,7 @@
+update when necessary
+2D
+north, south, west, east
+parallel
+
+tmpField[i] = 0;
+checkIfAllsquare

@@ -1,0 +1,4 @@
+myGivenMotion.C
+
+
+LIB = $(FOAM_USER_LIBBIN)/libmydynamicMesh

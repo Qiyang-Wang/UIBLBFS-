@@ -1,0 +1,490 @@
+/*---------------------------------------------------------------------------*\
+
+    HiSA: High Speed Aerodynamic solver
+
+    Copyright (C) 2014-2018 Oliver Oxtoby - CSIR, South Africa
+    Copyright (C) 2014-2018 Johan Heyns - CSIR, South Africa
+    Copyright (C) 1991-2008 OpenCFD Ltd.
+
+-------------------------------------------------------------------------------
+License
+    This file is part of HiSA.
+
+    HiSA is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    HiSA is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with HiSA.  If not, see <http://www.gnu.org/licenses/>.
+
+\*---------------------------------------------------------------------------*/
+
+#include "lbfsScheme.H"
+#include "addToRunTimeSelectionTable.H"
+#include "bound.H"
+#include "fvcSurfaceReconstruct.H"
+#include "cellFaceFunctions.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+defineTypeNameAndDebug(lbfsScheme, 0);
+addToRunTimeSelectionTable(fluxScheme, lbfsScheme, dictionary);
+
+
+// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+lbfsScheme::lbfsScheme
+(
+    const dictionary& dict,
+    const psiThermo& thermo,
+    const volScalarField& rho,
+    const volVectorField& U,
+    const volVectorField& rhoU,
+    const volScalarField& rhoE,
+    const compressibleTurbulenceModel& turbulence
+)
+:
+    fluxScheme(typeName, dict),
+    mesh_(U.mesh()),
+    thermo_(thermo),
+    rho_(rho),
+    U_(U),
+    rhoU_(rhoU),
+    rhoE_(rhoE),
+    dict_(dict)
+{}
+
+
+// * * * * * * * * * * * * * * * * Destructors * * * * * * * * * * * * * * * //
+
+lbfsScheme::~lbfsScheme()
+{}
+
+
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+void lbfsScheme::lbfs_D1Q4
+(
+    scalar s1x,
+    scalar s1y,
+    scalar s1z,
+    scalar rho_L,
+    scalar rho_R,
+    vector U_L,
+    vector U_R,
+    scalar p_L,
+    scalar p_R,
+    scalar& F_1, 
+    vector& F_24, 
+    scalar& F_5
+)
+{
+    scalar Dim = 1;
+    scalar gamma = 1.4;
+//    scalar C = 340.2626;//sqrt(1.4*288.15*287)
+//    scalar rho2p = C*C;
+
+    //Primitive variables [density, x-velocity, y-velocity, z-velocity, pressure]
+    scalar dl = rho_L; 
+    scalar uul= U_L.x();
+    scalar vvl= U_L.y();
+    scalar wwl= U_L.z();
+//    scalar pl = rho_L*rho2p;
+    scalar pl = p_L;
+    scalar dr = rho_R; 
+    scalar uur= U_R.x();
+    scalar vvr= U_R.y();
+    scalar wwr= U_R.z();
+//    scalar pr = rho_R*rho2p;
+    scalar pr = p_R;
+
+    //Switch factor, use for controlling numerical dissipation 
+//    scalar ParaA= 0.1;
+    scalar ParaA = 0;// tanh(10*abs(pl-pr)/(pl+pr));
+
+    scalar hl=gamma*pl/((gamma-1.)*dl)+0.5*(uul*uul+vvl*vvl+wwl*wwl);
+    scalar hr=gamma*pr/((gamma-1.)*dr)+0.5*(uur*uur+vvr*vvr+wwr*wwr);
+   
+    //----Roe average--------------------
+    scalar tmpp=sqrt(dr/dl);
+    scalar avd=0.25*dl*(1.+tmpp)*(1.+tmpp);
+    scalar avu=(uul+tmpp*uur)/(1.+tmpp);
+    scalar avv=(vvl+tmpp*vvr)/(1.+tmpp);
+    scalar avw=(wwl+tmpp*wwr)/(1.+tmpp);
+    scalar avh=(hl+tmpp*hr)/(1.+tmpp);
+    scalar avc=sqrt(Dim*(avh-0.5*(avu*avu+avv*avv+avw*avw))*(gamma-1.)/gamma);
+    scalar avn=avu*s1x+avv*s1y+avw*s1z;
+    scalar vnl=uul*s1x+vvl*s1y+wwl*s1z;
+    scalar vnr=uur*s1x+vvr*s1y+wwr*s1z;
+    
+    scalar vtl[3],vtr[3];
+    vtl[0]=uul-vnl*s1x;
+    vtl[1]=vvl-vnl*s1y;
+    vtl[2]=wwl-vnl*s1z;
+    vtr[0]=uur-vnr*s1x;
+    vtr[1]=vvr-vnr*s1y;
+    vtr[2]=wwr-vnr*s1z;
+        
+    //particle velocities
+    scalar d1=sqrt(avn*avn+3.*avc*avc-sqrt(4.*avn*avn*avc*avc+6.*avc*avc*avc*avc));
+    scalar d2=sqrt(avn*avn+3.*avc*avc+sqrt(4.*avn*avn*avc*avc+6.*avc*avc*avc*avc));
+    //
+    scalar epl;
+    scalar epr;
+    scalar NodeL[4],NodeR[4];
+
+    feq_d1q4(1,dl,vnl,pl,gamma,NodeL,d1,d2,epl);
+    feq_d1q4(2,dr,vnr,pr,gamma,NodeR,d1,d2,epr);
+
+    //********************************Scheme II (large numerical dissipation)************************************
+    scalar FL[5], FR[5];
+
+    FL[0]=NodeL[0]*d1+NodeL[2]*d2;
+    FL[1]=(NodeL[0]*d1*d1+NodeL[2]*d2*d2)*s1x+FL[0]*vtl[0];
+    FL[2]=(NodeL[0]*d1*d1+NodeL[2]*d2*d2)*s1y+FL[0]*vtl[1];
+    FL[3]=(NodeL[0]*d1*d1+NodeL[2]*d2*d2)*s1z+FL[0]*vtl[2];
+    FL[4]=d1*NodeL[0]*(0.5*d1*d1+epl)+d2*NodeL[2]*(0.5*d2*d2+epl)+0.5*FL[0]*(vtl[0]*vtl[0]+vtl[1]*vtl[1]+vtl[2]*vtl[2]);
+
+    FR[0]=NodeR[1]*(-d1)+NodeR[3]*(-d2);
+    FR[1]=(NodeR[1]*d1*d1+NodeR[3]*d2*d2)*s1x+FR[0]*vtr[0];
+    FR[2]=(NodeR[1]*d1*d1+NodeR[3]*d2*d2)*s1y+FR[0]*vtr[1];
+    FR[3]=(NodeR[1]*d1*d1+NodeR[3]*d2*d2)*s1z+FR[0]*vtr[2];
+    FR[4]=(-d1)*NodeR[1]*(0.5*d1*d1+epr)+(-d2)*NodeR[3]*(0.5*d2*d2+epr)+0.5*FR[0]*(vtr[0]*vtr[0]+vtr[1]*vtr[1]+vtr[2]*vtr[2]);
+
+    scalar F2[5];
+    for(int n = 0; n < 5; n++)
+    {
+        F2[n]=FL[n]+FR[n];
+    }
+    //***********************************************************************************************************
+
+    //******************************Scheme I (less numerical dissipation)****************************************
+    FL[0]=NodeL[0]+NodeL[2];
+    FL[1]=(NodeL[0]*d1+NodeL[2]*d2)*s1x+FL[0]*vtl[0];
+    FL[2]=(NodeL[0]*d1+NodeL[2]*d2)*s1y+FL[0]*vtl[1];
+    FL[3]=(NodeL[0]*d1+NodeL[2]*d2)*s1z+FL[0]*vtl[2];
+    FL[4]=NodeL[0]*(0.5*d1*d1+epl)+NodeL[2]*(0.5*d2*d2+epl)+0.5*FL[0]*(vtl[0]*vtl[0]+vtl[1]*vtl[1]+vtl[2]*vtl[2]);
+
+    FR[0]=NodeR[1]+NodeR[3];
+    FR[1]=(NodeR[1]*(-d1)+NodeR[3]*(-d2))*s1x+FR[0]*vtr[0];
+    FR[2]=(NodeR[1]*(-d1)+NodeR[3]*(-d2))*s1y+FR[0]*vtr[1];
+    FR[3]=(NodeR[1]*(-d1)+NodeR[3]*(-d2))*s1z+FR[0]*vtr[2];
+    FR[4]=NodeR[1]*(0.5*d1*d1+epr)+NodeR[3]*(0.5*d2*d2+epr)+0.5*FR[0]*(vtr[0]*vtr[0]+vtr[1]*vtr[1]+vtr[2]*vtr[2]);
+
+    scalar W[5];
+    for(int n = 0; n < 5; n++)
+    {
+        W[n]=FL[n]+FR[n];
+    }
+
+    scalar d =W[0];
+    scalar uu=W[1]/d;
+    scalar vv=W[2]/d;
+    scalar ww=W[3]/d;
+    scalar vn=uu*s1x+vv*s1y+ww*s1z;
+    scalar p =(W[4]-0.5*d*(uu*uu+vv*vv+ww*ww))*(gamma-1.);
+    scalar F1[5];
+    F1[0]=d*vn;
+    F1[1]=d*vn*uu+p*s1x;
+    F1[2]=d*vn*vv+p*s1y;
+    F1[3]=d*vn*ww+p*s1z;
+    F1[4]=(W[4]+p)*vn;	
+    //***********************************************************************************************************
+
+    //******************************Scheme III (moderately numerical dissipation)********************************
+    F_1      = ((1.-ParaA)*F1[0]+ParaA*F2[0]);
+    F_24.x() = ((1.-ParaA)*F1[1]+ParaA*F2[1]);
+    F_24.y() = ((1.-ParaA)*F1[2]+ParaA*F2[2]);
+    F_24.z() = ((1.-ParaA)*F1[3]+ParaA*F2[3]);
+    F_5      = ((1.-ParaA)*F1[4]+ParaA*F2[4]);
+
+}
+
+void lbfsScheme::feq_d1q4
+(
+    int side,
+    scalar rou,
+    scalar uu,
+    scalar p,
+    scalar gamma,
+    scalar node[4],
+    scalar d1,
+    scalar d2,
+    scalar &ep
+)
+{
+    scalar Dim = 1;
+
+    scalar en=p/rou/(gamma-1.);
+    scalar c=sqrt(Dim*(gamma-1.)*en);     	
+    ep=(1-0.5*Dim*(gamma-1.))*en;	  //Microscopic potential energy
+    scalar a12=2*d1*(d1*d1-d2*d2);
+    scalar a34=2*d2*(d1*d1-d2*d2);
+    
+    scalar d[4];	
+    if(side==1) {
+	d[0]=-d1*d2*d2-d2*d2*uu+d1*uu*uu+d1*c*c+uu*uu*uu+3.*uu*c*c;
+	d[2]= d2*d1*d1+d1*d1*uu-d2*uu*uu-d2*c*c-uu*uu*uu-3.*uu*c*c;
+	node[0]=rou*d[0]/a12;
+	node[2]=rou*d[2]/a34;
+    }
+    else if(side==2) {
+    	d[1]=-d1*d2*d2+d2*d2*uu+d1*uu*uu+d1*c*c-uu*uu*uu-3.*uu*c*c;
+	d[3]= d2*d1*d1-d1*d1*uu-d2*uu*uu-d2*c*c+uu*uu*uu+3.*uu*c*c;
+	node[1]=rou*d[1]/a12;
+	node[3]=rou*d[3]/a34;
+    }
+}
+
+void Foam::lbfsScheme::calcFlux(surfaceScalarField& phi, surfaceVectorField& phiUp, surfaceScalarField& phiEp, surfaceVectorField& Up)
+{
+    tmp<surfaceScalarField> rho_L, rho_R;
+    fvc::surfaceReconstruct(rho_, rho_L, rho_R, "reconstruct(rho)");
+    surfaceScalarField rho_L_ref = rho_L();
+    surfaceScalarField rho_R_ref = rho_R();    
+
+    tmp<surfaceVectorField> U_L, U_R;
+    fvc::surfaceReconstruct(U_, U_L, U_R, "reconstruct(U)");
+    surfaceVectorField U_L_ref = U_L();
+    surfaceVectorField U_R_ref = U_R();
+    
+    const volScalarField& p = thermo_.p();
+    tmp<surfaceScalarField> p_L, p_R;
+    fvc::surfaceReconstruct(p, p_L, p_R, "reconstruct(rho)");
+    surfaceScalarField p_L_ref = p_L();
+    surfaceScalarField p_R_ref = p_R();
+
+    forAll(mesh_.Sf(), i)
+    {
+        scalar F1, F5;
+        vector F24;
+        vector sf = mesh_.Sf()[i]/mesh_.magSf()[i];
+        lbfs_D1Q4
+        (
+            sf.x(),
+            sf.y(),
+            sf.z(),
+            rho_L_ref[i],
+            rho_R_ref[i],
+            U_L_ref[i],
+            U_R_ref[i],
+            p_L_ref[i],
+            p_R_ref[i],
+            F1,
+            F24,
+            F5
+        );
+        phi[i] = F1*mesh_.magSf()[i];
+        phiUp[i] = F24*mesh_.magSf()[i];
+        phiEp[i] = F5*mesh_.magSf()[i];
+    }
+/*
+     forAll( mesh_.boundaryMesh(), iPatch )
+    { // Patch BCtype
+        word BCType         = mesh_.boundaryMesh().types()[iPatch];
+        word BCName         = mesh_.boundaryMesh().names()[iPatch];
+        //======================================================================
+        // Loop on patch BCtype faces
+        //======================================================================
+        // *** BCs ( Boundary type must not be empty ) ***
+       // if((BCType== "wall")&&(FFrho.boundaryField()[iPatch].size() > 0))
+
+        if(phi.boundaryField()[iPatch].size() > 0)
+        {
+               // Info << "treating boundary conditions :"<<BCType<< endl;
+                forAll( mesh_.boundaryMesh()[iPatch].faceAreas(), ii )
+                {
+                    scalar rho_L_      = rho_.boundaryField()[iPatch][ii];
+                    vector U_L_        = U_.boundaryField()[iPatch][ii];
+                    scalar Sf   =  mag(mesh_.boundaryMesh()[iPatch].faceAreas()[ii] );
+
+                    vector n_i_ = mesh_.boundaryMesh()[iPatch].faceAreas()[ii];
+                    n_i_ = n_i_/mag(n_i_);
+                    scalar T = thermo_.T().boundaryField()[iPatch][ii];
+                    scalar H = 3.5*287*T + magSqr(U_L_)/2;
+
+                    phi.boundaryFieldRef()[iPatch][ii]      = ( rho_L_* (U_L_&n_i_) )*Sf;
+                    phiUp.boundaryFieldRef()[iPatch][ii]    = ( rho_L_* U_L_*(U_L_&n_i_) )*Sf;
+                    phiEp.boundaryFieldRef()[iPatch][ii]    = ( rho_L_*(U_L_&n_i_)*H)*Sf;
+                }
+        }
+     }
+*/
+
+    forAll(mesh_.boundaryMesh(), pi)
+    {
+        const fvsPatchField<vector>& Sfp = mesh_.Sf().boundaryField()[pi];
+        const fvsPatchField<scalar>& magSfp = mesh_.magSf().boundaryField()[pi];
+        const fvsPatchField<scalar>& rhoLp = rho_L_ref.boundaryField()[pi];
+        const fvsPatchField<scalar>& rhoRp = rho_R_ref.boundaryField()[pi];
+        const fvsPatchField<vector>& ULp = U_L_ref.boundaryField()[pi];
+        const fvsPatchField<vector>& URp = U_R_ref.boundaryField()[pi];
+        const fvsPatchField<scalar>& pLp = p_L_ref.boundaryField()[pi];
+        const fvsPatchField<scalar>& pRp = p_R_ref.boundaryField()[pi];
+          
+        if(phi.boundaryField()[pi].size() > 0)
+        {
+		forAll(Sfp, si)
+		{
+		    scalar F1, F5;
+		    vector F24;
+		    vector sf = Sfp[si]/magSfp[si];
+		    lbfs_D1Q4
+		    (
+			sf.x(),
+			sf.y(),
+			sf.z(),
+			rhoLp[si],
+			rhoRp[si],
+			ULp[si],
+			URp[si],
+			pLp[si],
+			pRp[si],
+			F1,
+			F24,
+			F5
+		    );
+		    phi.boundaryFieldRef()[pi][si] = F1*magSfp[si];
+		    phiUp.boundaryFieldRef()[pi][si] = F24*magSfp[si];
+		    phiEp.boundaryFieldRef()[pi][si] = F5*magSfp[si];
+		}
+        }
+    }
+
+    Up = (U_L_ref+U_R_ref)*mesh_.magSf();
+/*    rho_L().write();
+    rho_R().write();
+    U_L().write();
+    U_R().write();
+    p_L().write();
+    p_R().write();
+    phi.write();
+    phiUp.write();
+    phiEp.write();
+    Info << "Written" << endl;
+    Info << mesh_.Sf().size() << endl;
+    Info << mesh_.Sf().internalField().size() << endl;
+    cin.get();
+*/
+}
+/*
+void Foam::lbfsScheme::recon
+(
+    const GeometricField<Type, fvPatchField, volMesh>& vf,
+    const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tlambdas_L,
+    const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tlambdas_R,
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tsf_L,
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tsf_R
+)
+{
+    if (surfaceInterpolation::debug)
+    {
+        InfoInFunction
+            << "Reconstructing left and right states of "
+            << vf.type() << " "
+            << vf.name()
+            << " from cells to faces"
+            << endl;
+    }
+
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& lambdas_L = tlambdas_L();
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& lambdas_R = tlambdas_R();
+
+    const Field<Type>& vfi = vf;
+    const Field<Type>& lambda_L = lambdas_L;
+    const Field<Type>& lambda_R = lambdas_R;
+
+    const fvMesh& mesh = vf.mesh();
+    const labelUList& P = mesh.owner();
+    const labelUList& N = mesh.neighbour();
+
+    tsf_L =
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
+        (
+            IOobject
+            (
+                "reconstructL("+vf.name()+')',
+                vf.instance(),
+                vf.db()
+            ),
+            mesh,
+            vf.dimensions()
+        );
+    tsf_R =
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
+        (
+            IOobject
+            (
+                "reconstructR("+vf.name()+')',
+                vf.instance(),
+                vf.db()
+            ),
+            mesh,
+            vf.dimensions()
+        );
+    GeometricField<Type, fvsPatchField, surfaceMesh>& sf_L = tsf_L.ref();
+    GeometricField<Type, fvsPatchField, surfaceMesh>& sf_R = tsf_R.ref();
+
+    Field<Type>& sfi_L = sf_L.primitiveFieldRef();
+    Field<Type>& sfi_R = sf_R.primitiveFieldRef();
+
+    for (label fi=0; fi<P.size(); fi++)
+    {
+        sfi_L[fi] = cmptMultiply(lambda_L[fi], vfi[P[fi]]) +
+                    cmptMultiply(pTraits<Type>::one-lambda_L[fi], vfi[N[fi]]);
+        sfi_R[fi] = cmptMultiply(lambda_R[fi], vfi[P[fi]]) +
+                    cmptMultiply(pTraits<Type>::one-lambda_R[fi], vfi[N[fi]]);
+    }
+
+
+    // Interpolate across coupled patches using given lambdas
+    typename GeometricField<Type, fvsPatchField, surfaceMesh>::
+        Boundary& sfbf_L = sf_L.boundaryFieldRef();
+    typename GeometricField<Type, fvsPatchField, surfaceMesh>::
+        Boundary& sfbf_R = sf_R.boundaryFieldRef();
+
+    forAll(lambdas_L.boundaryField(), pi)
+    {
+        const fvsPatchField<Type>& pLambda_L = lambdas_L.boundaryField()[pi];
+        const fvsPatchField<Type>& pLambda_R = lambdas_R.boundaryField()[pi];
+
+        if (vf.boundaryField()[pi].coupled())
+        {
+            sfbf_L[pi] =
+                cmptMultiply(pLambda_L, vf.boundaryField()[pi].patchInternalField())
+              + cmptMultiply(pTraits<Type>::one-pLambda_L, vf.boundaryField()[pi].patchNeighbourField());
+            sfbf_R[pi] =
+                cmptMultiply(pLambda_R, vf.boundaryField()[pi].patchInternalField())
+              + cmptMultiply(pTraits<Type>::one-pLambda_R, vf.boundaryField()[pi].patchNeighbourField());
+        }
+        else
+        {
+            sfbf_L[pi] = vf.boundaryField()[pi];
+            sfbf_R[pi] = vf.boundaryField()[pi];
+        }
+    }
+
+    tlambdas_L.clear();
+    tlambdas_R.clear();
+}
+*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// ************************************************************************* //

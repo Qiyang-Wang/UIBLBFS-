@@ -1,0 +1,7 @@
+wmake finiteVolume
+wmake preconditioners
+wmake solvers
+wmake functionObjects
+wmake solver
+wmake hisa
+wmake hisa
