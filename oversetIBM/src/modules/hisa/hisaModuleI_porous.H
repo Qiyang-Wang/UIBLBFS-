@@ -369,19 +369,29 @@ inline void Foam::hisaModule::calcB(int cmpt, const labelList& cellMap)
 {
     volVectorField& U = U_();
     volScalarField& alpha = alpha_();
-	
+    //volScalarField& p = thermo.p();
+    volScalarField& rho = scalarVars_[0];	
+    double Drho_interface[int(N_L)] = {0};// 密度减去初始密度1
+    double U_interface[int(N_L)] = {0};
+    double V_interface[int(N_L)] = {0};
+    std::ofstream outInterface("Interface.txt");
+    
     for(int i = 0; i<N_L; i++)
     {
         double rowSum_I = 0;
         double rowSum_F = 0;
         double rowSum_P = 0;
-
+        
         // interface    
         for(int j = 0; j<D_[i].size(); j++)
         {
             double u = U.internalField()[cellMap[DCellID_[i][j]]].component(cmpt);
             scalar alfa = alpha.internalField()[cellMap[DCellID_[i][j]]];
             rowSum_I += alfa*u*D_[i][j];
+            //求界面上的密度差，u，v
+            Drho_interface[i] += alfa*(rho[cellMap[DCellID_[i][j]]]-1)*D_[i][j];//*2.*Cs_macro_;
+            U_interface[i] +=alfa* U.internalField()[cellMap[DCellID_[i][j]]].component(0) *D_[i][j];
+            V_interface[i] +=alfa* U.internalField()[cellMap[DCellID_[i][j]]].component(1) *D_[i][j];
         }
 
         // fluid
@@ -403,6 +413,12 @@ inline void Foam::hisaModule::calcB(int cmpt, const labelList& cellMap)
         B_[i] = -(1 + epsilon_)*rowSum_I + rowSum_P + epsilon_*rowSum_F; //Ub_[i].component(cmpt) - rowSum;
         //B_[i] = Ub_[i].component(cmpt) - rowSum_I;
     }
+    for (int k = 0; k<N_L; k++)//输出界面rho
+    {
+        outInterface << solidObject_F[k].x << "   " << solidObject_F[k].y << "   " << U_interface[k]
+        <<"   "<< V_interface[k]<<"   "<< Drho_interface[k] << "\n";
+    }
+    outInterface.close();
 }
 
 inline void Foam::hisaModule::Amul(scalarField& wA, scalarField& psi)
@@ -661,144 +677,7 @@ inline void Foam::hisaModule::PBiCGsolve
 //	cin.get();
     }
 }
-/*
-inline void Foam::hisaModule::calcCorrection(label cmpt, const labelList& cellMap)
-{
-    scalar dt = time_.deltaT().value();
-    scalar t = time_.value();
-    
-    volScalarField& rho = scalarVars_[0];
-    volVectorField& F_r = F_r_();
-    const fvMesh& mesh = meshParts_[0].subMesh();
 
-    scalar Cf = 0;
-    scalar Cf1=0,Cf2=0;
-    scalar Cm = 0;
-    scalar Cm1=0,Cm2=0;
-    for(int i = 0; i<N_L; i++)
-    {
-        if(i<N_L/2)
-        {
-            for(int j = 0; j<D_[i].size(); j++)
-                {
-            double rowSum = D_[i][j]*X_[i];
-            deltaU_[cellMap[DCellID_[i][j]]].component(cmpt) += rowSum;
-
-	        Cf1 += 2*h_*h_*rowSum*rho[cellMap[DCellID_[i][j]]]/dt;  
-            
-            if (cmpt == 0)
-                {
-		        scalar Ly = mesh.C()[cellMap[DCellID_[i][j]]].y() - yc_;
-	            Cm1 += Cf1*Ly;
-                }
-            
-	        if (cmpt == 1)
-             {
-		        scalar Lx = mesh.C()[cellMap[DCellID_[i][j]]].x() - xc_;
-	            Cm1 += Cf1*Lx;
-                }
-            }
-        }
-        else
-        {
-            for(int j = 0; j<D_[i].size(); j++)
-                {
-            double rowSum = D_[i][j]*X_[i];
-            deltaU_[cellMap[DCellID_[i][j]]].component(cmpt) += rowSum;
-
-	        Cf2 += 2*h_*h_*rowSum*rho[cellMap[DCellID_[i][j]]]/dt;  
-            
-            if (cmpt == 0)
-                {
-		        scalar Ly = mesh.C()[cellMap[DCellID_[i][j]]].y() - yc_;
-	            Cm2 += Cf2*Ly;
-                }
-            
-	        if (cmpt == 1)
-             {
-		        scalar Lx = mesh.C()[cellMap[DCellID_[i][j]]].x() - xc_;
-	            Cm2 += Cf2*Lx;
-                }
-            }
-        }
-    }
-        
-    for(int j = 0; j<mesh.C().size(); j++)
-    {
-        scalar ff = F_r[cellMap[j]].component(cmpt);
-        if (fabs(ff) > 1e-16)
-        {
-            //Cf +=  2*h_*h_*ff;
-            Cf1 +=  2*h_*h_*ff;
-            Cf2 +=  2*h_*h_*ff;
-            if (cmpt == 0)
-            {
-		        scalar Ly = mesh.C()[j].y() - yc_;
-	            //Cm += Cf*Ly;
-                Cm1 +=Cf1*Ly;
-                Cm2 +=Cf2*Ly;
-            }
-            
-	        if (cmpt == 1)
-            {
-		        scalar Lx = mesh.C()[j].x() - xc_;
-	            //Cm += Cf*Lx;
-                Cm1 +=Cf1*Lx;
-                Cm2 +=Cf2*Lx;
-            }
-        }
-    }
-
-    // Note: for moving boundary problems, an extra acceleration term should be added in force calculation
-
-    if (cmpt == 0)
-    {
-	//Cd_ = -Cf;
-	//Cm_ = -Cm;
-    Cd_1 = -Cf1;
-    Cd_2 = -Cf2;
-    Cm_1 = -Cm1;
-    Cm_2 = -Cm2;
-        //std::ofstream outfile;
-        std::ofstream outfile1;
-        std::ofstream outfile2;
-        outfile1.open("Cd1.txt", std::ios_base::app);
-        outfile1 << t <<"    " <<  Cd_1 << "\n";
-        outfile2.open("Cd2.txt", std::ios_base::app);
-        outfile2 << t <<"    " <<  Cd_2 << "\n";
-    //    cout<<"Cd=" << Cd_ << nl << endl;//自己加的
-    }
-
-    if (cmpt == 1)
-    {
-	//Cl_ = -Cf;
-	//Cm_ = -Cm;
-    Cl_1 = -Cf1;
-    Cl_2 = -Cf2;
-    Cm_1 = -Cm1;
-    Cm_2 = -Cm2;    
-        //std::ofstream outfile;
-        std::ofstream outfile1;
-        std::ofstream outfile2;
-        outfile1.open("Cl1.txt", std::ios_base::app);
-        outfile1 << t <<"    " <<  Cl_1 << "\n";
-        outfile2.open("Cl2.txt", std::ios_base::app);
-        outfile2 << t <<"    " <<  Cl_2 << "\n";
-    //    cout<<"Cl=" << Cl_ << nl << endl;//自己加的
-
-	//std::ofstream outfileCm;
-    std::ofstream outfileCm1;
-    std::ofstream outfileCm2;
-        outfileCm1.open("Cm1.txt", std::ios_base::app);
-        outfileCm1 << t <<"    " << Cm_1 << "\n";
-        outfileCm2.open("Cm2.txt", std::ios_base::app);
-        outfileCm2 << t <<"    " << Cm_2 << "\n";
-    }
-
-    //Info << cmpt << ": " << -Cf << endl;
-    Info << cmpt << ": " << -Cf1 << endl;
-    Info << cmpt << ": " << -Cf2 << endl;
-}*/
 inline void Foam::hisaModule::calcCorrection(label cmpt, const labelList& cellMap)
 {
     scalar dt = time_.deltaT().value();
@@ -863,7 +742,6 @@ inline void Foam::hisaModule::calcCorrection(label cmpt, const labelList& cellMa
         std::ofstream outfile;
         outfile.open("Cd.txt", std::ios_base::app);
         outfile << t <<"    " <<  Cd_ << "\n";
-    //    cout<<"Cd=" << Cd_ << nl << endl;//自己加的
     }
 
     if (cmpt == 1)
@@ -873,8 +751,7 @@ inline void Foam::hisaModule::calcCorrection(label cmpt, const labelList& cellMa
         std::ofstream outfile;
         outfile.open("Cl.txt", std::ios_base::app);
         outfile << t <<"    " <<  Cl_ << "\n";
-    //    cout<<"Cl=" << Cl_ << nl << endl;//自己加的
-
+        
 	std::ofstream outfileCm;
         outfileCm.open("Cm.txt", std::ios_base::app);
         outfileCm << t <<"    " << Cm_ << "\n";
@@ -882,6 +759,7 @@ inline void Foam::hisaModule::calcCorrection(label cmpt, const labelList& cellMa
 
     Info << cmpt << ": " << -Cf << endl;
 }
+
 inline void Foam::hisaModule::ibm()
 {
 //    fvMesh& mesh = mesh_();
